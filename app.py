@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import librosa
+import librosa.display
 import streamlit as st
 import time
 from io import BytesIO
@@ -19,18 +20,18 @@ sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
 
 # Diccionario de artistas por género con características clave
 artistas_por_genero = {
-    "Trap": {"bpm": (140, 160), "artistas": ["Travis Scott", "Drake", "Future", "Lil Baby", "21 Savage"]},
-    "Reggaeton": {"bpm": (90, 110), "artistas": ["Bad Bunny", "J Balvin", "Rauw Alejandro", "Feid", "Ozuna"]},
-    "Hip-Hop": {"bpm": (110, 140), "artistas": ["Kendrick Lamar", "J. Cole", "Nas", "Jay-Z", "Eminem"]},
-    "Drill": {"bpm": (160, 180), "artistas": ["Pop Smoke", "Fivio Foreign", "Central Cee", "Sheff G", "Headie One"]},
-    "Afrobeat": {"bpm": (70, 90), "artistas": ["Burna Boy", "Wizkid", "Davido", "Rema", "Tems"]}
+    "Trap": {"bpm": (140, 160), "artistas": ["Travis Scott", "Drake"]},
+    "Reggaeton": {"bpm": (90, 110), "artistas": ["Bad Bunny", "J Balvin"]},
+    "Hip-Hop": {"bpm": (110, 140), "artistas": ["Kendrick Lamar", "J. Cole"]},
+    "Drill": {"bpm": (160, 180), "artistas": ["Pop Smoke", "Fivio Foreign"]},
+    "Afrobeat": {"bpm": (70, 90), "artistas": ["Burna Boy", "Wizkid"]}
 }
 
 # Función para analizar el audio
 def analizar_audio(archivo):
     try:
-        # Leer el archivo desde BytesIO
-        y, sr = librosa.load(BytesIO(archivo.getvalue()), sr=22050, offset=30, duration=30)
+        # Leer el archivo directamente
+        y, sr = librosa.load(BytesIO(archivo.read()), sr=22050, offset=30, duration=30)
         
         # Obtener BPM
         tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
@@ -39,9 +40,8 @@ def analizar_audio(archivo):
         # Obtener Key y escala
         chroma = librosa.feature.chroma_stft(y=y, sr=sr)
         key_index = np.argmax(np.mean(chroma, axis=1))
-        keys = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-        key = keys[key_index]
-        scale = "Minor" if np.mean(chroma[key_index]) < 0.5 else "Major"
+        key_list = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+        key = key_list[key_index]
         
         # Determinar género basado en BPM
         genero_detectado = "Unknown"
@@ -50,49 +50,48 @@ def analizar_audio(archivo):
                 genero_detectado = genero
                 break
         
-        # Buscar artista en Spotify
-        artista_sugerido = buscar_artista_spotify(genero_detectado, tempo, key, scale)
+        # Buscar artistas similares en Spotify
+        artistas_sugeridos = buscar_artistas_similares(genero_detectado, tempo, key)
         
-        return tempo, key, scale, genero_detectado, artista_sugerido
+        return tempo, key, genero_detectado, artistas_sugeridos
     except Exception as e:
-        return 0, "Unknown", "Unknown", "Unknown", "No disponible"
+        return 0, "Unknown", "Unknown", []
 
-# Buscar en Spotify el artista más compatible
-def buscar_artista_spotify(genero, bpm, key, scale):
+# Buscar en Spotify los artistas más compatibles
+def buscar_artistas_similares(genero, bpm, key):
     if genero == "Unknown":
-        return "No disponible"
+        return ["No disponible"]
     
-    posibles_artistas = artistas_por_genero.get(genero, {}).get("artistas", [])
+    artistas_base = artistas_por_genero.get(genero, {}).get("artistas", [])
     
-    for artista in posibles_artistas:
-        results = sp.search(q=artista, type="artist", limit=1)
-        if results["artists"]["items"]:
-            artist_id = results["artists"]["items"][0]["id"]
-            top_tracks = sp.artist_top_tracks(artist_id, country="US")["tracks"]
-            
-            for track in top_tracks:
-                audio_features = sp.audio_features(track["id"])[0]
-                if audio_features:
-                    track_bpm = round(audio_features["tempo"], 2)
-                    track_key = audio_features["key"]
-                    track_scale = "Minor" if audio_features["mode"] == 0 else "Major"
-                    
-                    if abs(track_bpm - bpm) <= 5 and track_key == key and track_scale == scale:
-                        return artista
-    return "No disponible"
+    artistas_ordenados = sorted(artistas_base, key=lambda artista: abs(obtener_bpm_spotify(artista) - bpm))
+    return artistas_ordenados[:2]
+
+# Obtener BPM promedio de un artista en Spotify
+def obtener_bpm_spotify(artista):
+    resultados = sp.search(q=artista, type='track', limit=5)
+    track_ids = [track['id'] for track in resultados['tracks']['items']]
+    
+    if not track_ids:
+        return 0
+    
+    features = sp.audio_features(track_ids)
+    bpms = [f['tempo'] for f in features if f and 'tempo' in f]
+    
+    return sum(bpms) / len(bpms) if bpms else 0
 
 # Interfaz en Streamlit
 st.title("🎵 Your Type Beat")
-st.markdown("Sube un beat para analizar su género, BPM, tonalidad y qué artista quedaría bien en él.")
+st.markdown("Sube un beat para analizar su género, BPM, tonalidad y qué artistas son similares a él.")
 archivo_audio = st.file_uploader("Sube tu beat en formato WAV o MP3", type=["wav", "mp3"])
 
 if archivo_audio is not None:
     st.audio(archivo_audio, format="audio/wav")
     with st.spinner("🔍 Analizando beat..."):
         time.sleep(2)
-        tempo, key, scale, genre, artista = analizar_audio(archivo_audio)
+        tempo, key, genre, artistas_sugeridos = analizar_audio(archivo_audio)
     
     st.write(f"**🎶 Género detectado:** {genre}")
     st.write(f"**📊 BPM:** {tempo}")
-    st.write(f"**🎼 Key/Scale:** {key} {scale}")
-    st.write(f"**🔥 Artista recomendado:** {artista}")
+    st.write(f"**🎼 Key:** {key}")
+    st.write(f"**🔥 Artistas similares:** {', '.join(artistas_sugeridos)}")
