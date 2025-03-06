@@ -3,20 +3,20 @@ import librosa
 import numpy as np
 import time
 
-# Diccionario de artistas por género
-top_artists = {
-    "Trap": ["Travis Scott", "Drake", "Future", "Lil Baby", "21 Savage", "Don Toliver", "Playboi Carti", "Roddy Ricch", "Gunna", "Lil Uzi Vert"],
-    "Reggaeton": ["Bad Bunny", "J Balvin", "Rauw Alejandro", "Feid", "Ozuna", "Anuel AA", "Karol G", "Daddy Yankee", "Myke Towers", "Jhay Cortez"],
-    "Hip-Hop": ["Kendrick Lamar", "J. Cole", "Nas", "Jay-Z", "Eminem", "Kanye West", "Pusha T", "Tyler, The Creator", "A$AP Rocky", "Big Sean"],
-    "Drill": ["Pop Smoke", "Fivio Foreign", "Central Cee", "Sheff G", "Headie One", "Digga D", "G Herbo", "Lil Durk", "King Von", "Stormzy"],
-    "Afrobeat": ["Burna Boy", "Wizkid", "Davido", "Rema", "Tems", "Omah Lay", "CKay", "Fireboy DML", "Joeboy", "Mr Eazi"]
+# Diccionario de artistas por género con características clave
+artistas_por_genero = {
+    "Trap": {"bpm": (140, 160), "artistas": ["Travis Scott", "Drake", "Future", "Lil Baby", "21 Savage", "Don Toliver", "Playboi Carti", "Roddy Ricch", "Gunna", "Lil Uzi Vert"]},
+    "Reggaeton": {"bpm": (90, 110), "artistas": ["Bad Bunny", "J Balvin", "Rauw Alejandro", "Feid", "Ozuna", "Anuel AA", "Karol G", "Daddy Yankee", "Myke Towers", "Jhay Cortez"]},
+    "Hip-Hop": {"bpm": (110, 140), "artistas": ["Kendrick Lamar", "J. Cole", "Nas", "Jay-Z", "Eminem", "Kanye West", "Pusha T", "Tyler, The Creator", "A$AP Rocky", "Big Sean"]},
+    "Drill": {"bpm": (160, 180), "artistas": ["Pop Smoke", "Fivio Foreign", "Central Cee", "Sheff G", "Headie One", "Digga D", "G Herbo", "Lil Durk", "King Von", "Stormzy"]},
+    "Afrobeat": {"bpm": (70, 90), "artistas": ["Burna Boy", "Wizkid", "Davido", "Rema", "Tems", "Omah Lay", "CKay", "Fireboy DML", "Joeboy", "Mr Eazi"]}
 }
 
 # Función para analizar el audio
 def analizar_audio(ruta_audio):
     try:
-        # Cargar solo el fragmento entre 30s y 40s con menor calidad para optimizar
-        y, sr = librosa.load(ruta_audio, sr=22050, offset=30, duration=10)
+        # Cargar fragmento más largo (30s-60s) para mejorar la detección de key/scale
+        y, sr = librosa.load(ruta_audio, sr=22050, offset=30, duration=30)
         
         # Obtener BPM
         tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
@@ -30,21 +30,16 @@ def analizar_audio(ruta_audio):
         scale = "Minor" if np.mean(chroma[key_index]) < 0.5 else "Major"
         
         # Determinar género basado en BPM
-        if tempo < 90:
-            genre = "Afrobeat"
-        elif 90 <= tempo < 110:
-            genre = "Reggaeton"
-        elif 110 <= tempo < 140:
-            genre = "Hip-Hop"
-        elif 140 <= tempo < 160:
-            genre = "Trap"
-        else:
-            genre = "Drill"
+        genero_detectado = "Unknown"
+        for genero, data in artistas_por_genero.items():
+            if data["bpm"][0] <= tempo < data["bpm"][1]:
+                genero_detectado = genero
+                break
         
-        # Seleccionar 1 o 2 artistas del género
-        artistas = np.random.choice(top_artists.get(genre, ["Desconocido"]), min(2, len(top_artists.get(genre, []))), replace=False)
+        # Seleccionar 1 o 2 artistas más adecuados del género
+        artistas = np.random.choice(artistas_por_genero.get(genero_detectado, {}).get("artistas", ["No disponible"]), min(2, len(artistas_por_genero.get(genero_detectado, {}).get("artistas", []))), replace=False)
         
-        return tempo, key, scale, genre, artistas
+        return tempo, key, scale, genero_detectado, artistas
     except Exception as e:
         return 0, "Unknown", "Unknown", "Unknown", ["No disponible"]
 
@@ -55,7 +50,7 @@ archivo_audio = st.file_uploader("Sube tu beat en formato WAV o MP3", type=["wav
 
 if archivo_audio is not None:
     st.audio(archivo_audio, format="audio/wav")
-    with st.spinner("Analizando beat..."):
+    with st.spinner("🔍 Analizando beat..."):
         time.sleep(2)  # Simulación de carga
         tempo, key, scale, genre, artistas = analizar_audio(archivo_audio)
     
