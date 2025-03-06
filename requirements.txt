@@ -4,3 +4,4 @@ soundfile
 scipy
 streamlit
 spotipy
+python-dotenv
