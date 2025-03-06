@@ -12,6 +12,24 @@ sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
     client_secret=SPOTIFY_CLIENT_SECRET
 ))
 
+# Prueba de conexión: Obtener los 10 temas más populares de Bad Bunny
+def test_spotify_connection():
+    results = sp.search(q="Bad Bunny", type="artist", limit=1)
+    if results["artists"]["items"]:
+        artist_id = results["artists"]["items"][0]["id"]
+        top_tracks = sp.artist_top_tracks(artist_id, country="US")["tracks"]
+        return [track["name"] for track in top_tracks[:10]]
+    return "No se encontraron canciones."
+
+# Mostrar en Streamlit
+import streamlit as st
+st.title("Prueba de conexión con Spotify")
+st.write("Canciones populares de Bad Bunny:")
+st.write(test_spotify_connection())
+
+
+
+
 import streamlit as st
 import librosa
 import numpy as np
