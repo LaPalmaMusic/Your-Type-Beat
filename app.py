@@ -20,6 +20,7 @@ def analizar_audio(ruta_audio):
         
         # Obtener BPM
         tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
+        tempo = round(tempo, 2) if tempo else 0
         
         # Obtener Key y si es menor o mayor
         chroma = librosa.feature.chroma_stft(y=y, sr=sr)
@@ -41,11 +42,11 @@ def analizar_audio(ruta_audio):
             genre = "Drill"
         
         # Seleccionar 1 o 2 artistas del género
-        artistas = np.random.choice(top_artists[genre], 2, replace=False)
+        artistas = np.random.choice(top_artists.get(genre, ["Desconocido"]), 2, replace=False)
         
         return tempo, key, scale, genre, artistas
     except Exception as e:
-        return None, None, None, None, None
+        return 0, "Unknown", "Unknown", "Unknown", ["No disponible"]
 
 # Interfaz de usuario en Streamlit
 st.title("🎵 Your Type Beat")
@@ -58,10 +59,7 @@ if archivo_audio is not None:
         time.sleep(2)  # Simulación de carga
         tempo, key, scale, genre, artistas = analizar_audio(archivo_audio)
     
-    if tempo is not None:
-        st.write(f"**🎶 Género detectado:** {genre}")
-        st.write(f"**📊 BPM:** {tempo:.2f}")
-        st.write(f"**🎼 Key/Scale:** {key} {scale}")
-        st.write(f"**🔥 Artistas recomendados:** {', '.join(artistas)}")
-    else:
-        st.error("❌ Error al analizar el audio. Asegúrate de subir un archivo válido.")
+    st.write(f"**🎶 Género detectado:** {genre}")
+    st.write(f"**📊 BPM:** {tempo}")
+    st.write(f"**🎼 Key/Scale:** {key} {scale}")
+    st.write(f"**🔥 Artistas recomendados:** {', '.join(artistas)}")
