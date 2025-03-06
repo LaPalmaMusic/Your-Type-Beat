@@ -1,3 +1,17 @@
+import os
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+
+# Cargar credenciales desde las variables de entorno (GitHub Secrets)
+SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+
+# Configurar autenticación con Spotify API
+sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
+    client_id=SPOTIFY_CLIENT_ID,
+    client_secret=SPOTIFY_CLIENT_SECRET
+))
+
 import streamlit as st
 import librosa
 import numpy as np
