@@ -20,7 +20,7 @@ def analizar_audio(ruta_audio):
         
         # Obtener BPM
         tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-        tempo = round(tempo, 2) if tempo else 0
+        tempo = round(float(tempo), 2) if tempo else 0
         
         # Obtener Key y si es menor o mayor
         chroma = librosa.feature.chroma_stft(y=y, sr=sr)
@@ -42,7 +42,7 @@ def analizar_audio(ruta_audio):
             genre = "Drill"
         
         # Seleccionar 1 o 2 artistas del género
-        artistas = np.random.choice(top_artists.get(genre, ["Desconocido"]), 2, replace=False)
+        artistas = np.random.choice(top_artists.get(genre, ["Desconocido"]), min(2, len(top_artists.get(genre, []))), replace=False)
         
         return tempo, key, scale, genre, artistas
     except Exception as e:
